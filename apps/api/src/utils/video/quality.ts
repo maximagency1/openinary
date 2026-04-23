@@ -1,4 +1,5 @@
 import type { TransformFunction } from './types';
+import { videoOptimizationConfig } from '../media-optimization-config';
 
 /**
  * Apply quality settings to a video using CRF (Constant Rate Factor)
@@ -20,10 +21,9 @@ export const applyQuality: TransformFunction = (
 
   const { quality } = context.params;
 
-  // Default quality if not specified: 60 (CRF 31 - faster encoding for 8K)
-  // This prevents ffmpeg from re-encoding without compression
-  // Lower quality = faster encoding, especially important for 8K videos
-  const defaultQuality = 60;
+  // Default quality is configurable so production deployments can trade speed
+  // for smaller outputs without forcing q_ on every request.
+  const defaultQuality = videoOptimizationConfig.defaultQuality;
   const qualityValue = quality !== undefined
     ? (typeof quality === 'string' ? parseInt(quality, 10) : quality)
     : defaultQuality;
@@ -32,23 +32,56 @@ export const applyQuality: TransformFunction = (
   if (isNaN(qualityValue) || qualityValue < 0 || qualityValue > 100) {
     // Use default if invalid
     const crf = Math.round(51 - (defaultQuality / 100) * 33);
-    return command
+    let configuredCommand = command
       .videoCodec('libx264')
-      .addOption('-preset', 'ultrafast')  // Ultra fast preset for local dev
-      .addOption('-crf', crf.toString())
-      .audioCodec('copy');  // Copy audio without re-encoding
+      .addOption('-preset', videoOptimizationConfig.encodingPreset)
+      .addOption('-crf', crf.toString());
+
+    if (videoOptimizationConfig.encodingTune) {
+      configuredCommand = configuredCommand.addOption('-tune', videoOptimizationConfig.encodingTune);
+    }
+
+    if (videoOptimizationConfig.h264Profile) {
+      configuredCommand = configuredCommand.addOption('-profile:v', videoOptimizationConfig.h264Profile);
+    }
+
+    if (videoOptimizationConfig.h264Level) {
+      configuredCommand = configuredCommand.addOption('-level', videoOptimizationConfig.h264Level);
+    }
+
+    configuredCommand = configuredCommand.audioCodec(videoOptimizationConfig.audioCodec);
+    if (videoOptimizationConfig.audioCodec !== 'copy' && videoOptimizationConfig.audioBitrate) {
+      configuredCommand = configuredCommand.audioBitrate(videoOptimizationConfig.audioBitrate);
+    }
+
+    return configuredCommand;
   }
 
   // Convert quality (0-100) to CRF (51-0)
   // Higher quality = lower CRF
   const crf = Math.round(51 - (qualityValue / 100) * 33);
 
-  return command
+  let configuredCommand = command
     .videoCodec('libx264')
-    .addOption('-preset', 'ultrafast')
-    .addOption('-crf', crf.toString())
-    .addOption('-tune', 'fastdecode')    // Optimize for fast decoding
-    .addOption('-profile:v', 'baseline') // Use baseline profile for compatibility & speed
-    .addOption('-level', '3.0')          // Lower level = simpler encoding
-    .audioCodec('copy');  // Copy audio without re-encoding
+    .addOption('-preset', videoOptimizationConfig.encodingPreset)
+    .addOption('-crf', crf.toString());
+
+  if (videoOptimizationConfig.encodingTune) {
+    configuredCommand = configuredCommand.addOption('-tune', videoOptimizationConfig.encodingTune);
+  }
+
+  if (videoOptimizationConfig.h264Profile) {
+    configuredCommand = configuredCommand.addOption('-profile:v', videoOptimizationConfig.h264Profile);
+  }
+
+  if (videoOptimizationConfig.h264Level) {
+    configuredCommand = configuredCommand.addOption('-level', videoOptimizationConfig.h264Level);
+  }
+
+  configuredCommand = configuredCommand.audioCodec(videoOptimizationConfig.audioCodec);
+  if (videoOptimizationConfig.audioCodec !== 'copy' && videoOptimizationConfig.audioBitrate) {
+    configuredCommand = configuredCommand.audioBitrate(videoOptimizationConfig.audioBitrate);
+  }
+
+  return configuredCommand;
 };

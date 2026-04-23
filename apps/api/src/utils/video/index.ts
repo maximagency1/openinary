@@ -11,6 +11,7 @@ import { applyResize } from './resize';
 import { applyQuality } from './quality';
 import { VideoCommandBuilder } from './command-builder';
 import type { VideoContext } from './types';
+import { imageOptimizationConfig } from '../media-optimization-config';
 
 // Re-export types for backward compatibility
 export * from './types';
@@ -38,11 +39,20 @@ async function convertWithSharp(
 
   switch (targetFormat) {
     case 'webp':
-      return sharp(buffer).webp({ quality: q }).toBuffer();
+      return sharp(buffer).webp({
+        quality: q,
+        effort: imageOptimizationConfig.webpEffort,
+      }).toBuffer();
     case 'avif':
-      return sharp(buffer).avif({ quality: q }).toBuffer();
+      return sharp(buffer).avif({
+        quality: q,
+        effort: imageOptimizationConfig.avifEffort,
+      }).toBuffer();
     case 'png':
-      return sharp(buffer).png().toBuffer();
+      return sharp(buffer).png({
+        compressionLevel: imageOptimizationConfig.pngCompressionLevel,
+        adaptiveFiltering: imageOptimizationConfig.pngAdaptiveFiltering,
+      }).toBuffer();
     case 'gif':
       // sharp doesn't encode animated GIF well; best effort single frame
       return sharp(buffer).gif().toBuffer();

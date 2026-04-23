@@ -94,8 +94,8 @@ RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standal
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
     sed -i 's/\r$//' /app/scripts/init-env-wrapper.sh || true
 
-# Copy nginx configuration
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+# Copy nginx configuration template (rendered at runtime for upload-size tuning)
+COPY docker/nginx.conf /etc/nginx/nginx.conf.template
 
 # Create supervisor configuration
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -118,4 +118,3 @@ ENV DOCKER_CONTAINER="true"
 # Run init script wrapper to set env vars, run security script before starting supervisor
 # Source the wrapper script to export env vars, then run secure-db and start supervisor
 CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && cd /app && node scripts/secure-db.js && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
-

@@ -5,6 +5,11 @@
 # Run init-env.js to generate/update .env file
 cd /app && node scripts/init-env.js || echo "Warning: init-env.js failed, continuing with existing environment variables"
 
+# Render nginx.conf from the template so upload size can be configured at runtime.
+export NGINX_CLIENT_MAX_BODY_SIZE="${NGINX_CLIENT_MAX_BODY_SIZE:-100M}"
+sed "s/__NGINX_CLIENT_MAX_BODY_SIZE__/${NGINX_CLIENT_MAX_BODY_SIZE}/g" \
+  /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+
 # Load .env file and export variables to current shell and child processes
 if [ -f /app/apps/api/.env ]; then
   # Read BETTER_AUTH_SECRET from .env file and export it

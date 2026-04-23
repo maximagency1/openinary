@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
 import logger, { serializeError } from '../logger';
+import { imageOptimizationConfig } from '../media-optimization-config';
 
 export class Compression {
   private static readonly FORMAT_PRIORITIES = {
@@ -197,8 +198,11 @@ export class Compression {
       }
     }
     
-    // Remove metadata to save space
-    pipeline = pipeline.withMetadata();
+    // Metadata retention is configurable because stripping EXIF/IPTC saves bytes,
+    // but some installations may want to keep it for downstream workflows.
+    if (imageOptimizationConfig.preserveMetadata) {
+      pipeline = pipeline.withMetadata();
+    }
     
     return pipeline;
   }
@@ -215,14 +219,14 @@ export class Compression {
       case 'avif':
         return pipeline.avif({
           quality,
-          effort: 1, 
+          effort: imageOptimizationConfig.avifEffort,
           chromaSubsampling: '4:2:0'
         });
         
       case 'webp':
         return pipeline.webp({
           quality,
-          effort: 1, 
+          effort: imageOptimizationConfig.webpEffort,
           smartSubsample: false
         });
         
@@ -230,22 +234,22 @@ export class Compression {
       case 'jpg':
         return pipeline.jpeg({
           quality,
-          progressive: false, 
-          mozjpeg: false,
+          progressive: imageOptimizationConfig.jpegProgressive,
+          mozjpeg: imageOptimizationConfig.jpegMozjpeg,
           chromaSubsampling: '4:2:0'
         });
         
       case 'png':
         return pipeline.png({
-          compressionLevel: 3, 
-          adaptiveFiltering: false 
+          compressionLevel: imageOptimizationConfig.pngCompressionLevel,
+          adaptiveFiltering: imageOptimizationConfig.pngAdaptiveFiltering
         });
         
       default:
         // PNG fallback
         return pipeline.png({
-          compressionLevel: 3,
-          adaptiveFiltering: false
+          compressionLevel: imageOptimizationConfig.pngCompressionLevel,
+          adaptiveFiltering: imageOptimizationConfig.pngAdaptiveFiltering
         });
     }
   }

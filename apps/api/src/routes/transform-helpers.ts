@@ -5,6 +5,7 @@ import { parseParams } from "../utils/parser";
 import { transformImage } from "../utils/image/index";
 import { transformVideo } from "../utils/video/index";
 import { Compression } from "../utils/image/compression";
+import { getMaxVideoSourceSizeBytes } from "../utils/media-optimization-config";
 import logger, { serializeError } from "../utils/logger";
 import {
   existsInCache,
@@ -320,11 +321,14 @@ export async function processVideo(
   // Check file size before processing to prevent server crashes
   const fs = await import("fs");
   const stats = fs.statSync(originalPath);
-  const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB (increased for 8K videos)
+  const maxVideoSizeBytes = getMaxVideoSourceSizeBytes();
   
-  if (stats.size > MAX_VIDEO_SIZE) {
+  if (stats.size > maxVideoSizeBytes) {
     const fileSizeMB = (stats.size / 1024 / 1024).toFixed(1);
-    throw new Error(`Video file too large: ${fileSizeMB} MB (maximum allowed: 200 MB)`);
+    const maxSizeMB = (maxVideoSizeBytes / 1024 / 1024).toFixed(0);
+    throw new Error(
+      `Video file too large: ${fileSizeMB} MB (maximum allowed: ${maxSizeMB} MB)`,
+    );
   }
   
   // Get video information for better diagnostics
@@ -455,4 +459,3 @@ export async function performPeriodicCacheCleanup(): Promise<void> {
     }
   }
 }
-

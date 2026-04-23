@@ -1,6 +1,7 @@
 import ffmpeg, { FfmpegCommand } from 'fluent-ffmpeg';
 import { readFile, unlink, rmdir } from 'fs/promises';
 import type { VideoContext, TransformFunction } from './types';
+import { videoOptimizationConfig } from '../media-optimization-config';
 
 /**
  * Builder class for constructing and executing ffmpeg commands
@@ -43,13 +44,17 @@ export class VideoCommandBuilder {
    * Includes a 5-minute timeout to handle large videos (4K, 8K)
    */
   async execute(): Promise<Buffer> {
-    const TIMEOUT_MS = 300000; // 5 minutes (increased for 8K videos)
+    const TIMEOUT_MS = videoOptimizationConfig.processingTimeoutMs;
     
     return new Promise((resolve, reject) => {
       // Set timeout to kill ffmpeg if it takes too long
       const timeoutId = setTimeout(() => {
         this.command.kill('SIGKILL');
-        reject(new Error('Video processing timeout: exceeded 5 minutes. Try reducing video resolution or duration.'));
+        reject(
+          new Error(
+            `Video processing timeout: exceeded ${Math.round(TIMEOUT_MS / 60000)} minute(s). Try reducing video resolution or duration, or increase VIDEO_PROCESS_TIMEOUT_MS.`,
+          ),
+        );
       }, TIMEOUT_MS);
       
       this.command
